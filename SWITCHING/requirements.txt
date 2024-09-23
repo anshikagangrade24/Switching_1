@@ -1,0 +1,14 @@
+rom flask import Flask, request, jsonify
+import mysql.connector
+import datetime
+import threading
+import tkinter as tk
+import ctypes
+import win32gui, win32con
+import signal
+import sys
+import logging
+import cv2
+from PIL import Image, ImageTk
+import pygetwindow as gw
+from pywinauto import Application, Desktop

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Video Interview Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            user-select: none; /* Disable text selection */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        #video {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+        #warning-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ec6a6a;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: none;
+            color: #fff;
+            text-align: center;
+            z-index: 9999;
+        }
+        #fullscreen-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;"> <!-- Disable right-click -->
+    <video id="video" autoplay playsinline></video>
+    <div id="warning-message">
+        <p id="warning-text"></p>
+    </div>
+    <button id="fullscreen-button">Enable Fullscreen and Start Test</button>
+
+    <script>
+        let warnings = 0;
+        const videoElement = document.getElementById("video");
+        const fullscreenButton = document.getElementById("fullscreen-button");
+        const warningMessage = document.getElementById("warning-message");
+        const warningText = document.getElementById("warning-text");
+
+        // Function to start the test in fullscreen mode
+        function startTest() {
+            document.documentElement.requestFullscreen()
+                .then(() => {
+                    fullscreenButton.style.display = 'none';  // Hide button after enabling fullscreen
+                    videoElement.style.display = 'block';  // Show video stream
+                    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                        .then(stream => {
+                            videoElement.srcObject = stream;
+                        })
+                        .catch(error => console.error("Error accessing camera:", error));
+                })
+                .catch(err => console.error("Error trying to enable fullscreen:", err));
+        }
+
+        // Monitor fullscreen changes
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                terminateTest();
+            }
+        });
+
+        // Add an event listener to detect visibility changes
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === "hidden") {
+                warnings++;
+                displayWarningMessage(warnings);
+            }
+        });
+
+        // Function to display the warning message
+        function displayWarningMessage(warnings) {
+            if (warnings === 1) {
+                warningText.textContent = "Warning! You are not allowed to switch tabs or leave fullscreen during the live video interview test. Continuing to do so will result in test termination.";
+            } else if (warnings === 2) {
+                warningText.textContent = "Final Warning! If you leave fullscreen or switch tabs again, your test will be terminated.";
+            } else if (warnings > 2) {
+                terminateTest();
+            }
+
+            warningMessage.style.display = "block";
+            setTimeout(function() {
+                warningMessage.style.display = "none";
+            }, 10000); // Hide the warning message after 10 seconds
+        }
+
+        // Function to terminate the test
+        function terminateTest() {
+            // Stop the video stream
+            videoElement.srcObject.getTracks().forEach(track => track.stop());
+
+            // Display a message indicating that the test has been terminated
+            swal({
+                title: "Test Terminated!",
+                text: "Your test has been terminated due to unauthorized activity.",
+                icon: "error",
+                buttons: {
+                    confirm: {
+                        text: "OK",
+                        value: true,
+                        visible: true,
+                        className: "btn btn-danger",
+                        closeModal: true
+                    }
+                }
+            });
+
+            // Send an API request to the backend server to terminate the test
+            fetch('/terminate-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: '123',
+                    testId: 'abc'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === "Test terminated successfully") {
+                    console.log("Test terminated successfully");
+                }
+            })
+            .catch(error => console.error(error));
+        }
+
+        // Event listener for the "Enable Fullscreen and Start Test" button
+        fullscreenButton.addEventListener("click", startTest);
+
+        // Prevent common keyboard shortcuts for switching tabs
+        document.addEventListener('keydown', function(event) {
+            // Prevent switching shortcuts (Alt+Tab, Ctrl+Tab, etc.)
+            if (event.altKey || event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                warnings++;
+                displayWarningMessage(warnings);
+            }
+        });
+
+        // Prevent text copying or pasting
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();
+            warnings++;
+            displayWarningMessage(warnings);
+        });
+
+        document.addEventListener('paste', function(e) {
+            e.preventDefault();
+            warnings++;
+            displayWarningMessage(warnings);
+        });
+    </script>
+</body>
+</html>
